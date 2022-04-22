@@ -64,6 +64,10 @@ extern "C" void ccall_bt_app_rc_ct_cb(esp_avrc_ct_cb_event_t event, esp_avrc_ct_
     if (self_BluetoothA2DPSource) self_BluetoothA2DPSource->bt_app_rc_ct_cb(event, param);
 }
 
+extern "C" void ccall_bt_app_rc_tg_cb(esp_avrc_tg_cb_event_t event, esp_avrc_tg_cb_param_t *param){
+    if (self_BluetoothA2DPSource) self_BluetoothA2DPSource->bt_app_rc_tg_cb(event, param);
+}
+
 extern "C" void ccall_a2d_app_heart_beat(void *arg) {
     if(self_BluetoothA2DPSource) self_BluetoothA2DPSource->a2d_app_heart_beat(arg);
 }
@@ -537,11 +541,23 @@ void BluetoothA2DPSource::bt_av_hdl_stack_evt(uint16_t event, void *p_param)
             esp_avrc_ct_init();
             esp_avrc_ct_register_callback(ccall_bt_app_rc_ct_cb);
 
+            assert(esp_avrc_tg_init() == ESP_OK);
+            esp_avrc_tg_register_callback(ccall_bt_app_rc_tg_cb);
+
 #ifdef ESP_IDF_4
             // activate volume change
             esp_avrc_rn_evt_cap_mask_t evt_set = {0};
-            esp_avrc_rn_evt_bit_mask_operation(ESP_AVRC_BIT_MASK_OP_SET, &evt_set, ESP_AVRC_RN_VOLUME_CHANGE);
+            esp_avrc_tg_get_rn_evt_cap(ESP_AVRC_RN_CAP_ALLOWED_EVT, &evt_set);
             assert(esp_avrc_tg_set_rn_evt_cap(&evt_set) == ESP_OK);
+
+            ESP_LOGD(BT_AV_TAG, "Set target capabilities: %d", evt_set);
+
+            esp_avrc_psth_bit_mask_t cmd_set = {0};
+            esp_avrc_tg_get_psth_cmd_filter(ESP_AVRC_PSTH_FILTER_ALLOWED_CMD, &cmd_set);
+            esp_avrc_tg_set_psth_cmd_filter(ESP_AVRC_PSTH_FILTER_SUPPORTED_CMD, &cmd_set);
+
+            esp_avrc_tg_get_rn_evt_cap(ESP_AVRC_RN_CAP_ALLOWED_EVT, &evt_set);
+            ESP_LOGD(BT_AV_TAG, "All allowed target rn capabilities: %x", evt_set);
 #endif
             /* initialize A2DP source */
             esp_a2d_register_callback(&ccall_bt_app_a2d_cb);
@@ -843,6 +859,49 @@ void BluetoothA2DPSource::bt_app_rc_ct_cb(esp_avrc_ct_cb_event_t event, esp_avrc
     }
 }
 
+void BluetoothA2DPSource::bt_app_rc_tg_cb(esp_avrc_tg_cb_event_t event, esp_avrc_tg_cb_param_t *rc)
+{
+    ESP_LOGD(BT_RC_CT_TAG, "%s TG event %d", __func__, event);
+
+    switch (event)
+	{
+	case ESP_AVRC_TG_CONNECTION_STATE_EVT:
+	{
+		uint8_t *bda = rc->conn_stat.remote_bda;
+		ESP_LOGI(logTag, "AVRC conn_state evt: state %d, [%02x:%02x:%02x:%02x:%02x:%02x]", rc->conn_stat.connected, bda[0], bda[1], bda[2], bda[3], bda[4], bda[5]);
+		break;
+	}
+	case ESP_AVRC_TG_PASSTHROUGH_CMD_EVT:
+	{
+		ESP_LOGI(logTag, "AVRC passthrough cmd: key_code 0x%x, key_state %d", rc->psth_cmd.key_code, rc->psth_cmd.key_state);
+        if (passthrough_event_callback!=nullptr){
+            passthrough_event_callback(rc->psth_cmd.key_code, rc->psth_cmd.key_state, passthrough_event_obj);
+        } else {
+            ESP_LOGI(logTag, "No passthrough callback set");
+        }
+		break;
+	}
+	case ESP_AVRC_TG_SET_ABSOLUTE_VOLUME_CMD_EVT:
+	{
+		ESP_LOGI(logTag, "AVRC volume cmd: volume");
+		break;
+	}
+	case ESP_AVRC_TG_REGISTER_NOTIFICATION_EVT:
+	{
+		ESP_LOGI(logTag, "AVRC register event notification: %d, param: 0x%x", rc->reg_ntf.event_id, rc->reg_ntf.event_parameter);
+		break;
+	}
+	case ESP_AVRC_TG_REMOTE_FEATURES_EVT:
+	{
+		ESP_LOGI(logTag, "AVRC remote features %x, CT features %x", rc->rmt_feats.feat_mask, rc->rmt_feats.ct_feat_flag);
+		break;
+	}
+	default:
+		ESP_LOGE(logTag, "%s unhandled evt %d", __func__, event);
+		break;
+	}
+}
+
 #ifdef ESP_IDF_4
 
 void BluetoothA2DPSource::bt_av_volume_changed(void)
@@ -862,6 +921,8 @@ void BluetoothA2DPSource::bt_av_notify_evt_handler(uint8_t event_id, esp_avrc_rn
         esp_avrc_ct_send_set_absolute_volume_cmd(APP_RC_CT_TL_RN_VOLUME_CHANGE, event_parameter->volume + 5);
         bt_av_volume_changed();
         break;
+    default:
+        ESP_LOGI(BT_RC_CT_TAG, "Not handled event: %d", event_id);
     }
 }
 

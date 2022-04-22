@@ -30,6 +30,7 @@ extern "C" void ccall_bt_av_hdl_stack_evt(uint16_t event, void *p_param);
 extern "C" void ccall_bt_app_task_handler(void *arg);
 extern "C" void ccall_bt_app_gap_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param);
 extern "C" void ccall_bt_app_rc_ct_cb(esp_avrc_ct_cb_event_t event, esp_avrc_ct_cb_param_t *param);
+extern "C" void ccall_bt_app_rc_tg_cb(esp_avrc_tg_cb_event_t event, esp_avrc_tg_cb_param_t *param);
 extern "C" void ccall_a2d_app_heart_beat(void *arg) ;
 extern "C" void ccall_bt_app_a2d_cb(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param);
 extern "C" void ccall_bt_app_av_sm_hdlr(uint16_t event, void *param);
@@ -50,6 +51,7 @@ class BluetoothA2DPSource : public BluetoothA2DPCommon {
   friend void ccall_bt_app_task_handler(void *arg);
   friend void ccall_bt_app_gap_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param);
   friend void ccall_bt_app_rc_ct_cb(esp_avrc_ct_cb_event_t event, esp_avrc_ct_cb_param_t *param);
+  friend void ccall_bt_app_rc_tg_cb(esp_avrc_tg_cb_event_t event, esp_avrc_tg_cb_param_t *param);
   friend void ccall_a2d_app_heart_beat(void *arg) ;
   friend void ccall_bt_app_a2d_cb(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param);
   friend void ccall_bt_app_av_sm_hdlr(uint16_t event, void *param);
@@ -231,6 +233,7 @@ class BluetoothA2DPSource : public BluetoothA2DPCommon {
     virtual void bt_app_gap_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param);
     /// callback function for AVRCP controller
     virtual void bt_app_rc_ct_cb(esp_avrc_ct_cb_event_t event, esp_avrc_ct_cb_param_t *param);
+    virtual void bt_app_rc_tg_cb(esp_avrc_tg_cb_event_t event, esp_avrc_tg_cb_param_t *param);
     virtual void a2d_app_heart_beat(void *arg);
     /// callback function for A2DP source
     virtual void bt_app_a2d_cb(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param);
