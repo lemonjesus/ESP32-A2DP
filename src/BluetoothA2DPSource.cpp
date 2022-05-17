@@ -870,6 +870,7 @@ void BluetoothA2DPSource::bt_app_rc_tg_cb(esp_avrc_tg_cb_event_t event, esp_avrc
         case ESP_AVRC_TG_SET_ABSOLUTE_VOLUME_CMD_EVT:
         case ESP_AVRC_TG_REGISTER_NOTIFICATION_EVT:
         case ESP_AVRC_TG_REMOTE_FEATURES_EVT: {
+            ESP_LOGE(BT_RC_CT_TAG, "%s handled evt %d", __func__, event);
             bt_app_work_dispatch(ccall_bt_av_hdl_avrc_tg_evt, event, param, sizeof(esp_avrc_tg_cb_param_t), NULL);
             break;
         }
@@ -970,8 +971,9 @@ void BluetoothA2DPSource::bt_av_hdl_avrc_tg_evt(uint16_t evt, void *p_param)
         }
         case ESP_AVRC_TG_PASSTHROUGH_CMD_EVT: {
             ESP_LOGI(BT_RC_CT_TAG, "AVRC passthrough cmd: key_code 0x%x, key_state %d", rc->psth_cmd.key_code, rc->psth_cmd.key_state);
-            if (passthrough_event_callback!=nullptr) {
-                passthrough_event_callback(rc->psth_cmd.key_code, rc->psth_cmd.key_state, passthrough_event_obj);
+            if (passthrough_event_queue!=nullptr) {
+                // passthrough_event_callback(rc->psth_cmd.key_code, rc->psth_cmd.key_state, passthrough_event_obj);
+                xQueueSend(passthrough_event_queue, &rc->psth_cmd.key_code, 0);
             } else {
                 ESP_LOGE(BT_RC_CT_TAG, "No passthrough queue set");
             }
