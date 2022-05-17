@@ -306,7 +306,7 @@ void BluetoothA2DPSource::bt_app_task_handler(void *arg)
     for (;;) {
         if (s_bt_app_task_queue){
             if (pdTRUE == xQueueReceive(s_bt_app_task_queue, &msg, (portTickType)portMAX_DELAY)) {
-                ESP_LOGE(BT_APP_TAG, "%s, sig 0x%x, 0x%x", __func__, msg.sig, msg.event);
+                ESP_LOGD(BT_APP_TAG, "%s, sig 0x%x, 0x%x", __func__, msg.sig, msg.event);
                 switch (msg.sig) {
                     case BT_APP_SIG_WORK_DISPATCH:
                         bt_app_work_dispatched(&msg);
@@ -549,19 +549,21 @@ void BluetoothA2DPSource::bt_av_hdl_stack_evt(uint16_t event, void *p_param)
             esp_avrc_tg_register_callback(ccall_bt_app_rc_tg_cb);
 
 #ifdef ESP_IDF_4
+            // nb: I added this delay so the target interface capabilities are registered after the target interface is enabled. If
+            //     you don't use this delay, getting all allowed capabilities will fail, resulting in no capabilities getting set.
+            vTaskDelay(10 / portTICK_PERIOD_MS);
+
             // activate volume change
             esp_avrc_rn_evt_cap_mask_t evt_set = {0};
             esp_avrc_tg_get_rn_evt_cap(ESP_AVRC_RN_CAP_ALLOWED_EVT, &evt_set);
             assert(esp_avrc_tg_set_rn_evt_cap(&evt_set) == ESP_OK);
 
-            ESP_LOGE(BT_AV_TAG, "Set target capabilities: %d", evt_set);
+            ESP_LOGD(BT_AV_TAG, "Set target capabilities: %d", evt_set);
 
-            esp_avrc_psth_bit_mask_t cmd_set = {0};
-            esp_avrc_tg_get_psth_cmd_filter(ESP_AVRC_PSTH_FILTER_ALLOWED_CMD, &cmd_set);
-            esp_avrc_tg_set_psth_cmd_filter(ESP_AVRC_PSTH_FILTER_SUPPORTED_CMD, &cmd_set);
-            ESP_LOGE(BT_AV_TAG, "Set psth capabilities: %d", cmd_set);
-
-            esp_avrc_tg_get_rn_evt_cap(ESP_AVRC_RN_CAP_ALLOWED_EVT, &evt_set);
+            esp_avrc_psth_bit_mask_t psth_set = {0};
+            esp_avrc_tg_get_psth_cmd_filter(ESP_AVRC_PSTH_FILTER_ALLOWED_CMD, &psth_set);
+            esp_avrc_tg_set_psth_cmd_filter(ESP_AVRC_PSTH_FILTER_SUPPORTED_CMD, &psth_set);
+            ESP_LOGD(BT_AV_TAG, "Set psth capabilities: %d", psth_set);
 #endif
             /* initialize A2DP source */
             esp_a2d_register_callback(&ccall_bt_app_a2d_cb);
@@ -870,7 +872,6 @@ void BluetoothA2DPSource::bt_app_rc_tg_cb(esp_avrc_tg_cb_event_t event, esp_avrc
         case ESP_AVRC_TG_SET_ABSOLUTE_VOLUME_CMD_EVT:
         case ESP_AVRC_TG_REGISTER_NOTIFICATION_EVT:
         case ESP_AVRC_TG_REMOTE_FEATURES_EVT: {
-            ESP_LOGE(BT_RC_CT_TAG, "%s handled evt %d", __func__, event);
             bt_app_work_dispatch(ccall_bt_av_hdl_avrc_tg_evt, event, param, sizeof(esp_avrc_tg_cb_param_t), NULL);
             break;
         }
@@ -878,7 +879,6 @@ void BluetoothA2DPSource::bt_app_rc_tg_cb(esp_avrc_tg_cb_event_t event, esp_avrc
             ESP_LOGE(BT_RC_CT_TAG, "%s unhandled evt %d", __func__, event);
             break;
     }
-
 }
 
 #ifdef ESP_IDF_4
@@ -972,10 +972,9 @@ void BluetoothA2DPSource::bt_av_hdl_avrc_tg_evt(uint16_t evt, void *p_param)
         case ESP_AVRC_TG_PASSTHROUGH_CMD_EVT: {
             ESP_LOGI(BT_RC_CT_TAG, "AVRC passthrough cmd: key_code 0x%x, key_state %d", rc->psth_cmd.key_code, rc->psth_cmd.key_state);
             if (passthrough_event_queue!=nullptr) {
-                // passthrough_event_callback(rc->psth_cmd.key_code, rc->psth_cmd.key_state, passthrough_event_obj);
-                xQueueSend(passthrough_event_queue, &rc->psth_cmd.key_code, 0);
+                xQueueSend(passthrough_event_queue, &rc->psth_cmd, 0);
             } else {
-                ESP_LOGE(BT_RC_CT_TAG, "No passthrough queue set");
+                ESP_LOGW(BT_RC_CT_TAG, "No passthrough queue set");
             }
             break;
         }
