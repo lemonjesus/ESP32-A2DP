@@ -192,6 +192,11 @@ void BluetoothA2DPCommon::set_passthrough_event_queue(QueueHandle_t queue){
     passthrough_event_queue = queue;
 }
 
+/// Set the callback that is called when we get a passthrough event
+void BluetoothA2DPCommon::set_scan_result_queue(QueueHandle_t queue){
+    scan_result_queue = queue;
+}
+
 /// Set the callback that is called when the audio state is changed
 void BluetoothA2DPCommon::set_on_audio_state_changed(void (*callBack)(esp_a2d_audio_state_t state, void*), void* obj){
     audio_state_callback = callBack;

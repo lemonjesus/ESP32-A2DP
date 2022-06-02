@@ -153,32 +153,21 @@ void BluetoothA2DPSource::set_pin_code(const char *pin_code, esp_bt_pin_type_t p
     strcpy((char*)this->pin_code, pin_code);
 }
 
-void BluetoothA2DPSource::start(const char* name, music_data_channels_cb_t callback) {
-    std::vector<const char*> names = {name};
-    start(names, callback);
-}
-
-void BluetoothA2DPSource::start(std::vector<const char*> names, music_data_channels_cb_t callback) {
+void BluetoothA2DPSource::start(char* name, music_data_channels_cb_t callback) {
     ESP_LOGD(BT_APP_TAG, "%s, ", __func__);
     if (callback!=NULL){
         // we use the indicated callback
         this->data_stream_channels_callback = callback;
-        start_raw(names, ccall_get_channel_data_wrapper);
+        start_raw(name, ccall_get_channel_data_wrapper);
     } else {
         // we use the callback which supports write_data
-        start_raw(names, ccall_get_data_default);
+        start_raw(name, ccall_get_data_default);
     }
 }
 
-void BluetoothA2DPSource::start_raw(const char* name, music_data_cb_t callback) {
-    std::vector<const char*> names = {name};
-    start_raw(names, callback);
-}
-
-
-void BluetoothA2DPSource::start_raw(std::vector<const char*> names, music_data_cb_t callback) {
+void BluetoothA2DPSource::start_raw(char* name, music_data_cb_t callback) {
     ESP_LOGD(BT_APP_TAG, "%s, ", __func__);
-    this->bt_names = names;
+    this->bt_name = name;
     this->data_stream_callback = callback;
 
     // get last connection if not available
@@ -416,41 +405,30 @@ void BluetoothA2DPSource::filter_inquiry_scan_result(esp_bt_gap_cb_param_t *para
 			get_name_from_eir(eir, s_peer_bdname, NULL);
 			ESP_LOGI(BT_AV_TAG, "--Name: %s", s_peer_bdname);
 
-			bool found = false;
-			for (const char* name : bt_names)
-			{
-				int len = strlen(name);
-				ESP_LOGI(BT_AV_TAG, "--Checking match: %s", name);
-				if (strncmp((char *)s_peer_bdname, name, len) == 0) {
-					this->bt_name = (char *) s_peer_bdname;
-					found = true;
-					break;
-				}
-			}
-			if (found)
-			{
+            scan_result_msg_t result;
+
+            memcpy(result.name, s_peer_bdname, ESP_BT_GAP_MAX_BDNAME_LEN + 1);
+            memcpy(&(result.address), param->disc_res.bda, ESP_BD_ADDR_LEN);
+            xQueueSend(scan_result_queue, &result, 0);
+
+            int len = strlen(this->bt_name);
+            ESP_LOGI(BT_AV_TAG, "--Checking match: %s %p", this->bt_name, this->bt_name);
+			if (strncmp((char *)s_peer_bdname, this->bt_name, len) == 0) {
 				ESP_LOGI(BT_AV_TAG, "--Result: Target device found");
 				s_a2d_state = APP_AV_STATE_DISCOVERED;
 				memcpy(s_peer_bda, param->disc_res.bda, ESP_BD_ADDR_LEN);
 				set_last_connection(s_peer_bda);
 				ESP_LOGI(BT_AV_TAG, "Cancel device discovery ...");
 				esp_bt_gap_cancel_discovery();
-			}
-			else
-			{
+			} else {
 				ESP_LOGI(BT_AV_TAG, "--Result: Target device not found");
 			}
-		}
-		else
-		{
+		} else {
 			ESP_LOGI(BT_AV_TAG, "--Compatiblity: Scanned Device not Compatible");
 		}
-	}
-	else{
+	} else {
 		ESP_LOGI(BT_AV_TAG, "--Compatiblity: Scanned Device not Compatible.");
 	}
-	
-	
 }
 
 

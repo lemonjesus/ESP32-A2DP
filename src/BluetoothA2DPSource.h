@@ -26,6 +26,11 @@ typedef  int32_t (* music_data_cb_t) (uint8_t *data, int32_t len);
 typedef  int32_t (* music_data_channels_cb_t) (Frame *data, int32_t len);
 typedef void (* bt_app_copy_cb_t) (app_msg_t *msg, void *p_dest, void *p_src);
 
+typedef struct {
+    uint8_t              name[ESP_BT_GAP_MAX_BDNAME_LEN + 1];
+    esp_bd_addr_t        address;
+} scan_result_msg_t;
+
 extern "C" void ccall_bt_av_hdl_stack_evt(uint16_t event, void *p_param);
 extern "C" void ccall_bt_app_task_handler(void *arg);
 extern "C" void ccall_bt_app_gap_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param);
@@ -87,7 +92,7 @@ class BluetoothA2DPSource : public BluetoothA2DPCommon {
     }
 
     /// Defines the local name
-    virtual void set_local_name(const char* name){
+    virtual void set_local_name(char* name){
       bt_name = name;
     }
 
@@ -97,10 +102,7 @@ class BluetoothA2DPSource : public BluetoothA2DPCommon {
      * @param callback: function that provides the audio stream as array of Frame
      * @param is_ssp_enabled: Flag to activate Secure Simple Pairing 
      */
-    virtual void start(const char* name, music_data_channels_cb_t callback = NULL);
-
-    /// starts the bluetooth source. Supports multiple alternative names
-    virtual void start(std::vector<const char*> names, music_data_channels_cb_t callback = NULL);
+    virtual void start(char* name, music_data_channels_cb_t callback = NULL);
 
     /**
      * @brief starts the bluetooth source 
@@ -111,14 +113,10 @@ class BluetoothA2DPSource : public BluetoothA2DPCommon {
      * from PCM data normally formatted as 44.1kHz sampling rate, two-channel 16-bit sample data
      *  @param is_ssp_enabled: Flag to activate Secure Simple Pairing 
      */ 
-    virtual void start_raw(const char* name, music_data_cb_t callback = NULL);
-
-    /// start_raw which supports multiple alternative names
-    virtual void start_raw(std::vector<const char*> names, music_data_cb_t callback = NULL);
-
+    virtual void start_raw(char* name, music_data_cb_t callback = NULL);
 
     /// Defines the pin code. If nothing is defined we use "1234"
-    virtual  void set_pin_code(const char* pin_code, esp_bt_pin_type_t pin_type=ESP_BT_PIN_TYPE_VARIABLE);
+    virtual void set_pin_code(const char* pin_code, esp_bt_pin_type_t pin_type=ESP_BT_PIN_TYPE_VARIABLE);
 
     /**
      * @brief write sound data: In some cases it is very difficult to use the callback function. As an alternative we provide
@@ -166,9 +164,7 @@ class BluetoothA2DPSource : public BluetoothA2DPCommon {
     const char *dev_name = "ESP32_A2DP_SRC";
 
     bool ssp_enabled=false;
-    const char* bt_name = {0};
-    std::vector<const char*> bt_names;
-
+    char* bt_name;//[ESP_BT_GAP_MAX_BDNAME_LEN + 1];
     esp_bt_pin_type_t pin_type;
     esp_bt_pin_code_t pin_code;
     uint32_t pin_code_len;

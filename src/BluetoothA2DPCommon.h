@@ -137,6 +137,9 @@ class BluetoothA2DPCommon {
 
         /// Set the callback that is called when we get a passthrough event
         virtual void set_passthrough_event_queue(QueueHandle_t queue);
+        
+        /// Set the callback that is called when we find a compatable device to connect to
+        virtual void set_scan_result_queue(QueueHandle_t queue);
 
         /// Set the callback that is called when the audio state is changed
         virtual void set_on_audio_state_changed(void (*callBack)(esp_a2d_audio_state_t state, void*), void* obj=nullptr);
@@ -177,6 +180,7 @@ class BluetoothA2DPCommon {
         void (*audio_state_callback)(esp_a2d_audio_state_t state, void* obj) = nullptr;
         void *connection_state_obj = nullptr;
         QueueHandle_t passthrough_event_queue = nullptr;
+        QueueHandle_t scan_result_queue = nullptr;
         void *audio_state_obj = nullptr;
         const char *m_a2d_conn_state_str[4] = {"Disconnected", "Connecting", "Connected", "Disconnecting"};
         const char *m_a2d_audio_state_str[3] = {"Suspended", "Stopped", "Started"};
